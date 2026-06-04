@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     repos_dir: Path = Field(default=PROJECT_ROOT / "data" / "repos")
     max_file_bytes: int = Field(default=512_000)
     git_clone_depth: int = Field(default=1)
+    chunk_max_chars: int = Field(default=1500)
+    chunk_overlap_chars: int = Field(default=200)
 
 
 @lru_cache
