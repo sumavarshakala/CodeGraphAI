@@ -44,12 +44,13 @@ def index_repository(repo_url: str):
         "repo_id": repo.repo_id,
         "files": len(data.files),
         "chunks": len(chunks),
+        "stats": data.stats.to_dict(),
     }
 
 
 def ask_question(
     question: str,
-    top_k: int = 5,
+    top_k: int = 3,
 ):
     """
     Retrieve relevant chunks and ask Qwen.
@@ -65,7 +66,8 @@ def ask_question(
     )
 
     context = "\n\n".join(
-        results["documents"][0]
+        doc[:1000]
+        for doc in results["documents"][0]
     )
 
     prompt = f"""
@@ -86,4 +88,7 @@ Answer:
         prompt
     )
 
-    return answer
+    return {
+    "answer": answer,
+    "sources": results["metadatas"][0]
+}   
