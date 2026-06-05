@@ -2,7 +2,15 @@ import ast
 
 
 def extract_python_symbols(code: str):
-    tree = ast.parse(code)
+
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return {
+            "classes": [],
+            "functions": [],
+            "imports": [],
+        }
 
     classes = []
     functions = []

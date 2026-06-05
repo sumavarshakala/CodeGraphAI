@@ -12,6 +12,10 @@ from backend.vectorstore.chroma_store import (
 from backend.llm.ollama_client import (
     generate_answer,
 )
+from backend.graph.graph_search import (
+    find_class,
+    find_function,
+)
 
 
 def index_repository(repo_url: str):
@@ -50,11 +54,32 @@ def index_repository(repo_url: str):
 
 def ask_question(
     question: str,
-    top_k: int = 3,
+    top_k: int = 10,
 ):
     """
-    Retrieve relevant chunks and ask Qwen.
+    Graph search first.
+    If not found, fall back to RAG.
     """
+
+    words = question.split()
+
+    for word in words:
+
+        file_path = find_class(word)
+
+        if file_path:
+            return {
+                "answer": f"{word} is defined in {file_path}",
+                "sources": [],
+            }
+
+        file_path = find_function(word)
+
+        if file_path:
+            return {
+                "answer": f"{word} is defined in {file_path}",
+                "sources": [],
+            }
 
     query_embedding = embed_texts(
         [question]
@@ -65,30 +90,52 @@ def ask_question(
         top_k=top_k,
     )
 
+    filtered_docs = []
+    filtered_meta = []
+
+    for doc, meta in zip(
+        results["documents"][0],
+        results["metadatas"][0],
+    ):
+
+        file_path = meta.get("file", "")
+
+        if "tests/" in file_path:
+            continue
+
+        filtered_docs.append(doc)
+        filtered_meta.append(meta)
+
+        if len(filtered_docs) == 5:
+            break
+
     context = "\n\n".join(
-        doc[:1000]
-        for doc in results["documents"][0]
+        doc[:2000]
+        for doc in filtered_docs
     )
 
-    prompt = f"""
-You are a code repository assistant.
+    prompt = f"""You are a code repository assistant.
 
-Answer ONLY from the supplied context.
+    Answer using ONLY the supplied context.
 
-Context:
-{context}
+    Provide a detailed explanation.
+    Mention important functions, classes, examples, and implementation details when available.
 
-Question:
-{question}
+    Context:
+    {context}
 
-Answer:
-"""
+    Question:
+    {question}
+
+    Answer:"""
 
     answer = generate_answer(
         prompt
     )
+    
+    print(results["metadatas"][0])
 
     return {
-    "answer": answer,
-    "sources": results["metadatas"][0]
-}   
+        "answer": answer,
+        "sources": filtered_meta
+    }
